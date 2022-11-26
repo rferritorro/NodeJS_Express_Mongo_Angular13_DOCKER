@@ -1,0 +1,98 @@
+version: '3'
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: mongo_container
+    restart: always
+    ports:
+      - 27018:27017
+    environment:
+        MONGO_INITDB_ROOT_USERNAME: "rafa"
+        MONGO_INITDB_ROOT_PASSWORD: "1234"
+        MONGO_INITDB_DATABASE: bd_projects
+    volumes:
+      - ./mongo/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+      - ./mongo/mongorestore.sh:/docker-entrypoint-initdb.d/mongorestore.sh
+      - ./backend/rest/bd:/db-dump
+    networks:
+      - network_project
+  backend:
+    container_name: backend_container
+    restart: always
+    ports:
+      - 3000:3000
+    build: ./backend
+    depends_on:
+      - mongodb
+    command: "npm run dev"
+    networks:
+      - network_project
+  frontend:
+    container_name: frontend_container
+    restart: always
+    ports:
+      - 4200:4200
+    build: ./frontend
+    depends_on:
+      - backend
+    networks:
+      - network_project
+  mongo-express:
+    image: mongo-express:latest
+    restart: always
+    container_name: adminMongo_container
+    ports:
+      - 8081:8081
+    env_file:
+      - data.env
+    depends_on:
+      - "mongodb"
+    networks:
+      - network_project
+  loadbalancer:
+    container_name: loadbalancer_container
+    image: nginx:latest
+    restart: always
+    ports:
+      - 80:80
+    volumes:
+      - ./loadbalancer/nginx.conf:/etc/nginx/nginx.conf
+    command: ["nginx", "-g", "daemon off;"]
+    networks:
+      - network_project
+  prometheus:
+    container_name: prometheus_containers
+    image: prom/prometheus:v2.20.1
+    restart: always
+    ports:
+      - 9090:9090
+    volumes:
+      - ./prometheus/:/etc/prometheus
+    command:  
+      - --config.file=/etc/prometheus/prometheus.yml
+    networks:
+      - network_project
+  grafana:
+    container_name: grafana_container
+    image: grafana/grafana:7.1.5
+    restart: always
+    ports:
+      - 3500:3000
+    volumes:
+      - myGrafanaVol:/var/lib/grafana
+      - ./prometheus/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
+    env_file:
+      - data.env
+    # environment:
+    #   GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    #   GF_AUTH_ANONYMOUS_ENABLED: "true"
+    #   GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    #   GF_INSTALL_PLUGINS: grafana-clock-panel 1.0.1
+    depends_on:
+      - prometheus
+    networks:
+      - network_project
+networks:
+  network_project:
+volumes:
+  myGrafanaVol:
