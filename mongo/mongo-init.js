@@ -1,7 +1,7 @@
 db.createUser(
     {
-        user: "bioskin",
-        pwd: "12345",
+        user: "rafa",
+        pwd: "1234",
         roles: [
             {
                 role: "readWrite",
